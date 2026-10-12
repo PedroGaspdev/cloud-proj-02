@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_URL="https://github.com/PedroGaspdev/cloud-proj-02.git"
+APP_DIR="/opt/cloud-projeto_2"
+DATA_DIR="/var/lib/cloud-projeto_2"
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y apache2 php libapache2-mod-php php-mysql mysql-server git util-linux
+
+if [ -d "$APP_DIR/.git" ]; then
+    git -C "$APP_DIR" pull
+else
+    git clone "$REPO_URL" "$APP_DIR"
+fi
+
+mkdir -p "$DATA_DIR"/{scripts,envs}
+chown -R www-data:www-data "$DATA_DIR"
+
+mysql < "$APP_DIR/db/schema.sql"
+
+ln -sfn "$APP_DIR/web" /var/www/html/cloud-projeto_2
+
+install -m 0755 "$APP_DIR/bin/envctl" /usr/local/bin/envctl
+echo 'www-data ALL=(root) NOPASSWD: /usr/local/bin/envctl' >
+/etc/sudoers.d/cloud-projeto_2
+chmod 0440 /etc/sudoers.d/cloud-projeto_2
+
+mkdir -p /sys/fs/cgroup/projeto2
+echo '+cpu +memory +io' > /sys/fs/cgroup/cgroup.subtree_control
+echo '+cpu +memory +io' > /sys/fs/cgroup/projeto2/cgroup.subtree_control
+
+systemctl enable --now apache2 mysql
+systemctl restart apache2
