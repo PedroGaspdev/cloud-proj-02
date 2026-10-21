@@ -27,7 +27,11 @@ chown -R www-data:www-data "$DATA_DIR"
 
 mysql < "$APP_DIR/DB/schema.sql"
 
-ln -sfn "$APP_DIR/web" /var/www/html/cloud-projeto_2
+WEB_DIR="$APP_DIR/Web"
+if [ ! -d "$WEB_DIR" ]; then
+    WEB_DIR="$APP_DIR/web"
+fi
+ln -sfn "$WEB_DIR" /var/www/html/cloud-projeto_2
 
 install -m 0755 "$APP_DIR/bin/envctl" /usr/local/bin/envctl
 echo 'www-data ALL=(root) NOPASSWD: /usr/local/bin/envctl' > /etc/sudoers.d/cloud-projeto_2

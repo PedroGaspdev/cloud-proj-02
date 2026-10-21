@@ -1,7 +1,7 @@
 CREATE DATABASE IF NOT EXISTS projeto2;
 CREATE USER IF NOT EXISTS 'projeto2'@'localhost' IDENTIFIED BY 'SenhaSegura!';
 GRANT ALL PRIVILEGES ON projeto2.* TO 'projeto2'@'localhost';
-USE projeto2
+USE projeto2;
 
 CREATE TABLE IF NOT EXISTS scripts (
     id      INT AUTO_INCREMENT PRIMARY KEY,

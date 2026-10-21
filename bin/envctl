@@ -14,7 +14,7 @@ set -euo pipefail
 BASE="/sys/fs/cgroup/projeto2"
 
 # Diretório onde os arquivos gerados pelas execuções (logs, status) serão guardados
-DATA="/var/lib/projeto2/envs"
+DATA="/var/lib/cloud-projeto_2/envs"
 
 # Obtém o identificador Major:Minor do disco principal (ex: "8:0").
 # Necessário para aplicar regras de I/O em um dispositivo de bloco específico no Linux.
