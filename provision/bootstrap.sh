@@ -7,6 +7,10 @@ APP_DIR="/opt/cloud-projeto_2"
 DATA_DIR="/var/lib/cloud-projeto_2"
 
 export DEBIAN_FRONTEND=noninteractive
+
+# Remove qualquer linha no sources.list que comece com a palavra 'ubuntu' por engano
+sed -i '/^ubuntu/d' /etc/apt/sources.list
+
 apt-get update
 apt-get install -y apache2 php libapache2-mod-php php-mysql mysql-server git util-linux
 
@@ -21,13 +25,12 @@ fi
 mkdir -p "$DATA_DIR"/{scripts,envs}
 chown -R www-data:www-data "$DATA_DIR"
 
-mysql < "$APP_DIR/db/schema.sql"
+mysql < "$APP_DIR/DB/schema.sql"
 
 ln -sfn "$APP_DIR/web" /var/www/html/cloud-projeto_2
 
 install -m 0755 "$APP_DIR/bin/envctl" /usr/local/bin/envctl
-echo 'www-data ALL=(root) NOPASSWD: /usr/local/bin/envctl' >
-/etc/sudoers.d/cloud-projeto_2
+echo 'www-data ALL=(root) NOPASSWD: /usr/local/bin/envctl' > /etc/sudoers.d/cloud-projeto_2
 chmod 0440 /etc/sudoers.d/cloud-projeto_2
 
 mkdir -p /sys/fs/cgroup/projeto2
