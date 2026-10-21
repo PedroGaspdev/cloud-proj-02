@@ -1,0 +1,1 @@
+{"dependencies":[["dotenv",["= 3.2.0"]]],"checksum":"61916fe0adc4b98809aaba3cd68c468821c94d2cb064abeed85db9d7b141c08d","vagrant_version":"2.4.9"}

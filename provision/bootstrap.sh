@@ -2,6 +2,7 @@
 set -euo pipefail
 
 REPO_URL="https://github.com/PedroGaspdev/cloud-proj-02.git"
+REPO_BRANCH="develop"
 APP_DIR="/opt/cloud-projeto_2"
 DATA_DIR="/var/lib/cloud-projeto_2"
 
@@ -11,8 +12,10 @@ apt-get install -y apache2 php libapache2-mod-php php-mysql mysql-server git uti
 
 if [ -d "$APP_DIR/.git" ]; then
     git -C "$APP_DIR" pull
+    git -C "$APP_DIR" checkout "$REPO_BRANCH"
+    git -C "$APP_DIR" pull origin "$REPO_BRANCH"
 else
-    git clone "$REPO_URL" "$APP_DIR"
+    git clone -b "$REPO_BRANCH" "$REPO_URL" "$APP_DIR"
 fi
 
 mkdir -p "$DATA_DIR"/{scripts,envs}
