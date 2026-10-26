@@ -63,9 +63,9 @@ $currentPage = basename($_SERVER['PHP_SELF']);
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link <?= ($currentPage === 'scripts.php') ? 'active' : '' ?>" href="scripts.php">
+                    <span class="nav-link disabled" title="Será implementado no Passo 6">
                         <i class="bi bi-file-earmark-code"></i> Scripts Salvos
-                    </a>
+                    </span>
                 </li>
             </ul>
             <!-- <div class="d-flex align-items-center text-light small">

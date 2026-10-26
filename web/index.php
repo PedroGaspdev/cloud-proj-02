@@ -99,17 +99,17 @@ require_once __DIR__ . '/header.php';
                                 </td>
                                 <td class="text-end">
                                     <div class="btn-group btn-group-sm">
-                                        <a href="logs.php?id=<?= urlencode($amb['id']) ?>" class="btn btn-outline-secondary" title="Ver logs do ambiente">
+                                        <button class="btn btn-outline-secondary" disabled title="Logs (Será implementado no Passo 4)">
                                             <i class="bi bi-terminal"></i> Logs
-                                        </a>
+                                        </button>
                                         <?php if ($amb['estado'] === 'EXECUTANDO'): ?>
-                                            <a href="acoes.php?acao=stop&id=<?= urlencode($amb['id']) ?>" class="btn btn-outline-warning" title="Interromper ambiente" onclick="return confirm('Deseja parar este ambiente?');">
+                                            <button class="btn btn-outline-warning" disabled title="Parar (Será implementado no Passo 5)">
                                                 <i class="bi bi-stop-circle"></i> Parar
-                                            </a>
+                                            </button>
                                         <?php endif; ?>
-                                        <a href="acoes.php?acao=remove&id=<?= urlencode($amb['id']) ?>" class="btn btn-outline-danger" title="Remover ambiente" onclick="return confirm('Tem certeza que deseja remover este ambiente?');">
+                                        <button class="btn btn-outline-danger" disabled title="Remover (Será implementado no Passo 5)">
                                             <i class="bi bi-trash"></i>
-                                        </a>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
