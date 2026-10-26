@@ -99,9 +99,9 @@ require_once __DIR__ . '/header.php';
                                 </td>
                                 <td class="text-end">
                                     <div class="d-inline-flex gap-1">
-                                        <button class="btn btn-outline-secondary btn-sm" disabled title="Logs (Será implementado no Passo 4)">
+                                        <a href="logs.php?id=<?= urlencode($amb['id']) ?>" class="btn btn-outline-secondary btn-sm" title="Ver a saída do programa">
                                             <i class="bi bi-terminal"></i> Logs
-                                        </button>
+                                        </a>
                                         <!-- Ações via POST para acoes.php: um simples link (GET) não pode parar nem remover ambientes -->
                                         <?php if ($amb['estado'] === 'EXECUTANDO'): ?>
                                             <form method="POST" action="acoes.php" class="d-inline">
