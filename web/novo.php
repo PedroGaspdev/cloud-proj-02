@@ -5,6 +5,14 @@ $pdo = get_db();
 
 $erros = [];
 
+/**
+ * Converte quebras de linha Windows (\r\n) e antigas do Mac (\r) para Unix (\n).
+ * Sem isso, o bash lê "do\r" em vez de "do" e o script falha com erro de sintaxe.
+ */
+function normalizar_quebras(string $texto): string {
+    return str_replace(["\r\n", "\r"], "\n", $texto);
+}
+
 // Busca scripts já existentes para a opção de reuso
 $stmtScripts = $pdo->query("SELECT * FROM scripts ORDER BY created DESC");
 $scriptsCadastrados = $stmtScripts->fetchAll();
@@ -72,6 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $targetFile = SCRIPTS_DIR . '/' . uniqid('up_') . '_' . $cleanName;
 
                 if (move_uploaded_file($_FILES['script_file']['tmp_name'], $targetFile)) {
+                    // Scripts salvos no Windows vêm com CRLF, que o bash não entende
+                    file_put_contents($targetFile, normalizar_quebras(file_get_contents($targetFile)));
                     chmod($targetFile, 0755);
                     $stmtIns = $pdo->prepare("INSERT INTO scripts (nome, caminho) VALUES (:nome, :caminho)");
                     $stmtIns->execute(['nome' => $origName, 'caminho' => $targetFile]);
@@ -82,7 +92,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         } elseif ($tipoScript === 'comando') {
-            $comandos = trim($_POST['comandos'] ?? '');
+            // O navegador envia o textarea com CRLF (\r\n); o bash só aceita LF (\n)
+            $comandos = normalizar_quebras(trim($_POST['comandos'] ?? ''));
             if (empty($comandos)) {
                 $erros[] = "Digite ao menos um comando para ser executado.";
             } else {
