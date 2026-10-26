@@ -98,18 +98,27 @@ require_once __DIR__ . '/header.php';
                                     <?= date('d/m/Y H:i', strtotime($amb['created_in'])) ?>
                                 </td>
                                 <td class="text-end">
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-secondary" disabled title="Logs (Será implementado no Passo 4)">
+                                    <div class="d-inline-flex gap-1">
+                                        <button class="btn btn-outline-secondary btn-sm" disabled title="Logs (Será implementado no Passo 4)">
                                             <i class="bi bi-terminal"></i> Logs
                                         </button>
+                                        <!-- Ações via POST para acoes.php: um simples link (GET) não pode parar nem remover ambientes -->
                                         <?php if ($amb['estado'] === 'EXECUTANDO'): ?>
-                                            <button class="btn btn-outline-warning" disabled title="Parar (Será implementado no Passo 5)">
-                                                <i class="bi bi-stop-circle"></i> Parar
-                                            </button>
+                                            <form method="POST" action="acoes.php" class="d-inline">
+                                                <input type="hidden" name="acao" value="stop">
+                                                <input type="hidden" name="id" value="<?= htmlspecialchars($amb['id']) ?>">
+                                                <button type="submit" class="btn btn-outline-warning btn-sm" title="Parar a execução (mantém o registro)">
+                                                    <i class="bi bi-stop-circle"></i> Parar
+                                                </button>
+                                            </form>
                                         <?php endif; ?>
-                                        <button class="btn btn-outline-danger" disabled title="Remover (Será implementado no Passo 5)">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
+                                        <form method="POST" action="acoes.php" class="d-inline" onsubmit="return confirm(<?= htmlspecialchars(json_encode("Remover o ambiente '{$amb['nome']}'? Os processos serão encerrados e o log apagado.", JSON_UNESCAPED_UNICODE), ENT_QUOTES) ?>);">
+                                            <input type="hidden" name="acao" value="remove">
+                                            <input type="hidden" name="id" value="<?= htmlspecialchars($amb['id']) ?>">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Remover (encerra, apaga cgroup e log)">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>

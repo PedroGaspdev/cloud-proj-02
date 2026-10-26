@@ -1,5 +1,5 @@
 <?php
-// web/acoes.php - Ações de controle do ciclo de vida dos ambientes (parar)
+// web/acoes.php - Ações de controle do ciclo de vida dos ambientes (parar e remover)
 require_once __DIR__ . '/db.php';
 
 /**
@@ -52,6 +52,22 @@ if ($acao === 'stop') {
     $stmtUpd->execute(['id' => $id]);
 
     voltar('success', "Ambiente '{$amb['nome']}' ({$id}) parado com sucesso.");
+}
+
+if ($acao === 'remove') {
+    // envctl remove mata o que ainda estiver rodando, apaga o cgroup (rmdir) e a pasta com o output.log.
+    // Funciona em qualquer estado, inclusive depois de um reboot, quando o cgroup já não existe mais.
+    $res = exec_envctl('remove', $id);
+    if ($res['code'] !== 0) {
+        voltar('danger', "Falha ao remover o ambiente '{$amb['nome']}': " . $res['output']);
+    }
+
+    // O registro fica no banco como histórico; a listagem esconde os REMOVIDO.
+    // O script não é apagado, para continuar disponível para reuso.
+    $stmtUpd = $pdo->prepare("UPDATE ambientes SET estado = 'REMOVIDO', finished_in = COALESCE(finished_in, NOW()) WHERE id = :id");
+    $stmtUpd->execute(['id' => $id]);
+
+    voltar('success', "Ambiente '{$amb['nome']}' ({$id}) removido com sucesso.");
 }
 
 voltar('danger', 'Ação inválida.');
