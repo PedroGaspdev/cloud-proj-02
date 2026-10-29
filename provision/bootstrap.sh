@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_URL="https://github.com/PedroGaspdev/cloud-proj-02.git"
-REPO_BRANCH="develop"
+REPO_BRANCH="scripts_salvos"
 APP_DIR="/opt/cloud-projeto_2"
 DATA_DIR="/var/lib/cloud-projeto_2"
 

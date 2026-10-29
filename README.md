@@ -209,7 +209,8 @@ Permite configurar:
 ### 4. Gerenciamento de Scripts Salvos (`scripts.php`)
 - Visualiza scripts cadastrados e o conteúdo de cada arquivo.
 - Permite criar scripts Bash pelo formulário ou enviar arquivos `.sh` e `.bash` de até 1 MB.
-- Remove scripts sem ambientes associados. Scripts vinculados a ambientes são preservados para manter o histórico e a integridade do banco de dados.
+- Permite remover scripts mesmo quando associados a ambientes. A referência histórica é desvinculada e cada ambiente executa uma cópia própria do script, então a exclusão não interrompe execuções existentes.
+- Em instalações existentes, aplique a atualização do schema na VM com `sudo mysql < /opt/cloud-projeto_2/DB/schema.sql`.
 
 ---
 

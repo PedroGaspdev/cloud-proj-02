@@ -188,18 +188,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         redirecionar_scripts();
                     }
 
-                    $stmtUso = $pdo->prepare('SELECT COUNT(*) FROM ambientes WHERE script_id = :id');
-                    $stmtUso->execute(['id' => $idScript]);
-                    $quantidadeAmbientes = (int)$stmtUso->fetchColumn();
-                    if ($quantidadeAmbientes > 0) {
-                        $pdo->rollBack();
-                        set_flash(
-                            'warning',
-                            "O script '{$script['nome']}' está associado a {$quantidadeAmbientes} ambiente(s) e não pode ser removido."
-                        );
-                        redirecionar_scripts();
-                    }
-
                     $caminhoReal = caminho_script_salvo($script['caminho']);
                     if ($caminhoReal === null && (file_exists($script['caminho']) || is_link($script['caminho']))) {
                         $pdo->rollBack();
@@ -388,20 +376,14 @@ require_once __DIR__ . '/header.php';
                                     <a class="btn btn-outline-secondary btn-sm" href="scripts.php?id=<?= (int)$script['id'] ?>">
                                         <i class="bi bi-eye"></i> Visualizar
                                     </a>
-                                    <?php if ((int)$script['ambientes_vinculados'] === 0): ?>
-                                        <form method="POST" action="scripts.php" onsubmit="return confirm('Remover o script <?= htmlspecialchars(json_encode($script['nome'], JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES) ?>?');">
-                                            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
-                                            <input type="hidden" name="acao" value="remover">
-                                            <input type="hidden" name="script_id" value="<?= (int)$script['id'] ?>">
-                                            <button class="btn btn-outline-danger btn-sm" type="submit">
-                                                <i class="bi bi-trash"></i> Remover
-                                            </button>
-                                        </form>
-                                    <?php else: ?>
-                                        <button class="btn btn-outline-secondary btn-sm" type="button" disabled title="O script está associado a ambientes e não pode ser removido.">
-                                            <i class="bi bi-lock"></i> Em uso
+                                    <form method="POST" action="scripts.php" onsubmit="return confirm('Remover o script <?= htmlspecialchars(json_encode($script['nome'], JSON_HEX_APOS | JSON_HEX_QUOT), ENT_QUOTES) ?>? Ambientes já criados continuarão executando sua própria cópia.');">
+                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+                                        <input type="hidden" name="acao" value="remover">
+                                        <input type="hidden" name="script_id" value="<?= (int)$script['id'] ?>">
+                                        <button class="btn btn-outline-danger btn-sm" type="submit">
+                                            <i class="bi bi-trash"></i> Remover
                                         </button>
-                                    <?php endif; ?>
+                                    </form>
                                 </div>
                             </td>
                         </tr>

@@ -66,7 +66,7 @@ require_once __DIR__ . '/header.php';
                                 </td>
                                 <td>
                                     <span class="badge bg-light text-dark border">
-                                        <i class="bi bi-file-code"></i> <?= htmlspecialchars($amb['script_nome'] ?? 'Script avulso') ?>
+                                        <i class="bi bi-file-code"></i> <?= htmlspecialchars($amb['script_nome'] ?? 'Script removido') ?>
                                     </span>
                                 </td>
                                 <td>

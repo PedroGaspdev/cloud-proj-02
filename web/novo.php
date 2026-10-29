@@ -122,6 +122,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 3. Grava no banco e invoca o envctl create
     if (empty($erros) && $scriptId && $scriptPath) {
         try {
+            $pdo->beginTransaction();
+            $stmtLockScript = $pdo->prepare("SELECT id FROM scripts WHERE id = :id FOR UPDATE");
+            $stmtLockScript->execute(['id' => $scriptId]);
+            if (!$stmtLockScript->fetchColumn()) {
+                throw new RuntimeException("O script selecionado foi removido antes da criação do ambiente.");
+            }
+
             // Insere o registro na tabela ambientes
             $stmtAmb = $pdo->prepare("INSERT INTO ambientes (id, nome, script_id, cpu_pct, mem_mb, io_mbps, estado) VALUES (:id, :nome, :script_id, :cpu, :mem, :io, 'EXECUTANDO')");
             $stmtAmb->execute([
@@ -137,15 +144,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $res = exec_envctl('create', $id, [$cpu, $mem, $io, $scriptPath]);
 
             if ($res['code'] === 0) {
+                $pdo->commit();
                 set_flash('success', "Ambiente '{$nome}' ({$id}) criado e iniciado com sucesso!");
                 header("Location: index.php");
                 exit;
             } else {
                 // Atualiza o banco com status de erro caso o envctl falhe
                 $pdo->prepare("UPDATE ambientes SET estado = 'ERRO' WHERE id = :id")->execute(['id' => $id]);
+                $pdo->commit();
                 $erros[] = "O comando envctl falhou: " . htmlspecialchars($res['output']);
             }
         } catch (Exception $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             $erros[] = "Erro ao processar criação: " . $e->getMessage();
         }
     }
