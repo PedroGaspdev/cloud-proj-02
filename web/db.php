@@ -38,7 +38,7 @@ function get_db(): PDO {
  *
  * @param string $action Ação: create, status, log, stop, remove
  * @param string $id Identificador do ambiente (^[a-z0-9-]+$)
- * @param array $extraArgs Argumentos adicionais (cpu, mem, io, script)
+ * @param array $extraArgs Argumentos adicionais (cpu, mem, io, script, peso_cpu)
  * @return array ['output' => string, 'lines' => array, 'code' => int]
  */
 function exec_envctl(string $action, string $id, array $extraArgs = []): array {

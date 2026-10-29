@@ -73,6 +73,9 @@ require_once __DIR__ . '/header.php';
                                     <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">
                                         CPU: <?= (int)$amb['cpu_pct'] ?>%
                                     </span>
+                                    <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle" title="Peso de CPU (cpu.weight): prioridade quando há disputa">
+                                        Peso: <?= (int)$amb['cpu_weight'] ?>
+                                    </span>
                                     <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
                                         RAM: <?= (int)$amb['mem_mb'] ?> MB
                                     </span>

@@ -20,6 +20,7 @@ $scriptsCadastrados = $stmtScripts->fetchAll();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nome = trim($_POST['nome'] ?? '');
     $cpu = (int)($_POST['cpu_pct'] ?? 20);
+    $peso = (int)($_POST['cpu_weight'] ?? 100);
     $mem = (int)($_POST['mem_mb'] ?? 128);
     $io = (int)($_POST['io_mbps'] ?? 10);
     $tipoScript = $_POST['tipo_script'] ?? 'comando';
@@ -31,6 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($cpu < 1 || $cpu > 100) {
         $erros[] = "A CPU deve ser entre 1% e 100%.";
+    }
+
+    // Mesma faixa que o kernel aceita no cpu.weight
+    if ($peso < 1 || $peso > 10000) {
+        $erros[] = "A prioridade de CPU deve ser entre 1 e 10000.";
     }
 
     if ($mem < 16 || $mem > 4096) {
@@ -130,18 +136,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Insere o registro na tabela ambientes
-            $stmtAmb = $pdo->prepare("INSERT INTO ambientes (id, nome, script_id, cpu_pct, mem_mb, io_mbps, estado) VALUES (:id, :nome, :script_id, :cpu, :mem, :io, 'EXECUTANDO')");
+            $stmtAmb = $pdo->prepare("INSERT INTO ambientes (id, nome, script_id, cpu_pct, cpu_weight, mem_mb, io_mbps, estado) VALUES (:id, :nome, :script_id, :cpu, :peso, :mem, :io, 'EXECUTANDO')");
             $stmtAmb->execute([
                 'id'        => $id,
                 'nome'      => $nome,
                 'script_id' => $scriptId,
                 'cpu'       => $cpu,
+                'peso'      => $peso,
                 'mem'       => $mem,
                 'io'        => $io,
             ]);
 
             // Dispara a criação via envctl como root
-            $res = exec_envctl('create', $id, [$cpu, $mem, $io, $scriptPath]);
+            $res = exec_envctl('create', $id, [$cpu, $mem, $io, $scriptPath, $peso]);
 
             if ($res['code'] === 0) {
                 $pdo->commit();
@@ -215,7 +222,7 @@ require_once __DIR__ . '/header.php';
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-4">
+                        <div class="col-md-6 col-lg-3">
                             <label for="cpu_pct" class="form-label fw-semibold">CPU (% de 1 Core)</label>
                             <div class="input-group">
                                 <input type="number" class="form-control" id="cpu_pct" name="cpu_pct" min="1" max="100" value="<?= htmlspecialchars($_POST['cpu_pct'] ?? '20') ?>" required>
@@ -224,7 +231,16 @@ require_once __DIR__ . '/header.php';
                             <div class="form-text">Ex: 20 limita o processo a no máximo 20% da CPU.</div>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-6 col-lg-3">
+                            <label for="cpu_weight" class="form-label fw-semibold">Prioridade de CPU</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="cpu_weight" name="cpu_weight" min="1" max="10000" value="<?= htmlspecialchars($_POST['cpu_weight'] ?? '100') ?>" required>
+                                <span class="input-group-text">peso</span>
+                            </div>
+                            <div class="form-text">De 1 a 10000 (padrão 100). Só vale na disputa: 300 contra 100 leva 75%.</div>
+                        </div>
+
+                        <div class="col-md-6 col-lg-3">
                             <label for="mem_mb" class="form-label fw-semibold">Memória RAM (MB)</label>
                             <div class="input-group">
                                 <input type="number" class="form-control" id="mem_mb" name="mem_mb" min="16" max="4096" value="<?= htmlspecialchars($_POST['mem_mb'] ?? '128') ?>" required>
@@ -233,7 +249,7 @@ require_once __DIR__ . '/header.php';
                             <div class="form-text">Ao estourar este limite, ocorre OOM-Killer.</div>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-6 col-lg-3">
                             <label for="io_mbps" class="form-label fw-semibold">I/O de Disco (MB/s)</label>
                             <div class="input-group">
                                 <input type="number" class="form-control" id="io_mbps" name="io_mbps" min="1" max="1000" value="<?= htmlspecialchars($_POST['io_mbps'] ?? '10') ?>" required>

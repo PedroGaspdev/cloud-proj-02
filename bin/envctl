@@ -58,13 +58,18 @@ case $cmd in
   
   # =======================================================
   # COMANDO: CREATE (Cria e inicia o ambiente de execução)
-  # Exemplo de uso: envctl create <id> <cpu_%> <mem_MB> <io_MBps> <caminho_do_script>
+  # Exemplo de uso: envctl create <id> <cpu_%> <mem_MB> <io_MBps> <caminho_do_script> [peso_cpu]
   # =======================================================
   create)
-    cpu=$3 
-    mem=$4 
-    io=$5 
+    cpu=$3
+    mem=$4
+    io=$5
     script=$6
+    # Peso de CPU é opcional: sem ele, o ambiente fica com o padrão do kernel (100)
+    weight=${7:-100}
+
+    # O kernel só aceita cpu.weight entre 1 e 10000; valida antes de criar qualquer coisa
+    [[ $weight =~ ^[1-9][0-9]*$ ]] && (( weight <= 10000 )) || { echo "peso de cpu invalido (1-10000)" >&2; exit 1; }
 
     # Cria o diretório de cgroup e o diretório de dados para o novo ambiente
     mkdir -p "$CG" "$DIR"
@@ -77,6 +82,11 @@ case $cmd in
     # Multiplicar a % por 1000 num período de 100000ms define a porcentagem de uso de 1 Core.
     # Ex: se cpu=50, ficará "50000 100000" (limita a 50% de 1 core).
     echo "$((cpu * 1000)) 100000" > "$CG/cpu.max"
+
+    # 1.1 Prioridade de CPU: o cpu.max é um teto fixo; o cpu.weight só age quando há disputa.
+    # Se dois ambientes querem CPU ao mesmo tempo, o kernel divide na proporção dos pesos
+    # (ex: 300 contra 100 -> 75% / 25%), sempre respeitando o teto de cada um.
+    echo "$weight" > "$CG/cpu.weight"
 
     # 2. Memória: Define o limite máximo de RAM em Megabytes (ex: "512M").
     echo "${mem}M" > "$CG/memory.max"

@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS ambientes(
     nome        VARCHAR(100) NOT NULL,
     script_id   INT NULL,
     cpu_pct     INT NOT NULL,
+    cpu_weight  INT NOT NULL DEFAULT 100,
     mem_mb      INT NOT NULL,
     io_mbps     INT NOT NULL,
     estado      ENUM('EXECUTANDO', 'TERMINADO', 'ERRO', 'REMOVIDO') DEFAULT 'EXECUTANDO',
@@ -41,6 +42,24 @@ SET @drop_script_fk = IF(
 PREPARE drop_script_fk_stmt FROM @drop_script_fk;
 EXECUTE drop_script_fk_stmt;
 DEALLOCATE PREPARE drop_script_fk_stmt;
+
+-- Bancos criados antes da prioridade de CPU não têm a coluna cpu_weight.
+-- O MySQL 8 não suporta ADD COLUMN IF NOT EXISTS, então só adiciona se ela ainda não existir.
+SET @tem_cpu_weight = (
+    SELECT COUNT(*)
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'ambientes'
+      AND COLUMN_NAME = 'cpu_weight'
+);
+SET @add_cpu_weight = IF(
+    @tem_cpu_weight > 0,
+    'SELECT 1',
+    'ALTER TABLE ambientes ADD COLUMN cpu_weight INT NOT NULL DEFAULT 100 AFTER cpu_pct'
+);
+PREPARE add_cpu_weight_stmt FROM @add_cpu_weight;
+EXECUTE add_cpu_weight_stmt;
+DEALLOCATE PREPARE add_cpu_weight_stmt;
 
 ALTER TABLE ambientes MODIFY script_id INT NULL;
 ALTER TABLE ambientes

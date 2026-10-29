@@ -67,7 +67,7 @@ require_once __DIR__ . '/header.php';
         </div>
         <div>
             <span class="text-muted">Limites:</span>
-            CPU <?= (int)$amb['cpu_pct'] ?>% &bull; RAM <?= (int)$amb['mem_mb'] ?> MB &bull; I/O <?= (int)$amb['io_mbps'] ?> MB/s
+            CPU <?= (int)$amb['cpu_pct'] ?>% (peso <?= (int)$amb['cpu_weight'] ?>) &bull; RAM <?= (int)$amb['mem_mb'] ?> MB &bull; I/O <?= (int)$amb['io_mbps'] ?> MB/s
         </div>
         <div>
             <span class="text-muted">Criado em:</span>
