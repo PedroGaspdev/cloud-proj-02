@@ -1,180 +1,101 @@
 #!/usr/bin/env bash
 # Uso: envctl <create|status|log|stop|remove> <id> [parâmetros opcionais]
-# Este script gerencia o ciclo de vida dos ambientes isolados (namespaces) e seus limites de recursos (cgroups v2).
+# Gerencia os ambientes: namespaces isolam o que o processo vê, cgroups v2 limitam quanto ele usa.
 
-# ---------------------------------------------------------
-# 1. CONFIGURAÇÕES INICIAIS E VARIÁVEIS GLOBAIS
-# ---------------------------------------------------------
-
-# Modo estrito: O script falhará imediatamente se houver um erro, 
-# se uma variável não existir, ou se um comando no meio de um pipe falhar.
 set -euo pipefail
 
-# Diretório base onde a árvore do cgroups v2 do projeto será estruturada
-BASE="/sys/fs/cgroup/projeto2"
+BASE="/sys/fs/cgroup/projeto2"        # cgroup pai: cada ambiente vira uma subpasta
+DATA="/var/lib/cloud-projeto_2/envs"  # output.log, exit_code e stopped de cada ambiente
 
-# Diretório onde os arquivos gerados pelas execuções (logs, status) serão guardados
-DATA="/var/lib/cloud-projeto_2/envs"
+# O io.max identifica o disco pelo número major:minor (ex: 8:0), não pelo nome
+DISK=$(lsblk -dno MAJ:MIN /dev/sda | tr -d ' ')
 
-# Obtém o identificador Major:Minor do disco principal (ex: "8:0").
-# Necessário para aplicar regras de I/O em um dispositivo de bloco específico no Linux.
-DISK=$(lsblk -dno MAJ:MIN /dev/sda | tr -d ' ') 
-
-# ---------------------------------------------------------
-# 2. GARANTIA DA INFRAESTRUTURA DE CGROUPS V2
-# ---------------------------------------------------------
-
-# Garante a existência do diretório base do cgroups para o projeto.
-# Essa pasta desaparece após o reboot da máquina virtual, por isso precisa ser recriada.
+# /sys/fs/cgroup vive em memória e some no reboot: recria o pai e liga os controladores
 mkdir -p "$BASE"
-
-# Habilita os controladores de CPU, Memória e I/O na raiz do sistema e no diretório do projeto.
-# O `2>/dev/null || true` impede que o script pare de funcionar caso esses controladores já estejam ativos.
 echo '+cpu +memory +io' > /sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || true
 echo '+cpu +memory +io' > "$BASE/cgroup.subtree_control" 2>/dev/null || true
 
-# ---------------------------------------------------------
-# 3. VALIDAÇÃO DOS PARÂMETROS BÁSICOS
-# ---------------------------------------------------------
-
-# Lê o comando desejado e o ID do ambiente
 cmd=$1
 id=$2
 
-# Medida de segurança: Garante que o ID do ambiente só contenha letras minúsculas, 
-# números e hífens. Previne ataques de "Directory Traversal" (ex: id="../../etc").
+# Segurança: só a-z, 0-9 e hífen; impede path traversal (ex: id="../../etc") rodando como root
 [[ $id =~ ^[a-z0-9-]+$ ]] || { echo "id invalido" >&2; exit 1; }
 
-# Define o caminho do cgroup específico deste ambiente e a pasta onde os dados dele ficarão salvos
 CG="$BASE/$id"
 DIR="$DATA/$id"
 
-
-# ---------------------------------------------------------
-# 4. TRATAMENTO DOS COMANDOS PRINCIPAIS
-# ---------------------------------------------------------
-
 case $cmd in
-  
-  # =======================================================
-  # COMANDO: CREATE (Cria e inicia o ambiente de execução)
-  # Exemplo de uso: envctl create <id> <cpu_%> <mem_MB> <io_MBps> <caminho_do_script> [peso_cpu]
-  # =======================================================
+
+  # envctl create <id> <cpu_%> <mem_MB> <io_MBps> <caminho_do_script> [peso_cpu]
   create)
     cpu=$3
     mem=$4
     io=$5
     script=$6
-    # Peso de CPU é opcional: sem ele, o ambiente fica com o padrão do kernel (100)
     weight=${7:-100}
 
-    # O kernel só aceita cpu.weight entre 1 e 10000; valida antes de criar qualquer coisa
+    # O kernel só aceita cpu.weight entre 1 e 10000
     [[ $weight =~ ^[1-9][0-9]*$ ]] && (( weight <= 10000 )) || { echo "peso de cpu invalido (1-10000)" >&2; exit 1; }
 
-    # Cria o diretório de cgroup e o diretório de dados para o novo ambiente
     mkdir -p "$CG" "$DIR"
     [[ -f $script && -r $script ]] || { echo "script nao encontrado ou sem permissao de leitura" >&2; exit 1; }
     cp -- "$script" "$DIR/script.sh"
 
-    # -- CONFIGURAÇÃO DE LIMITES DE HARDWARE (CGROUPS) --
-
-    # 1. CPU: O formato no cgroups v2 é "cota_permitida periodo_total".
-    # Multiplicar a % por 1000 num período de 100000ms define a porcentagem de uso de 1 Core.
-    # Ex: se cpu=50, ficará "50000 100000" (limita a 50% de 1 core).
+    # CPU: "cota período" em µs; 50% -> "50000 100000" = 50 ms a cada 100 ms de 1 core
     echo "$((cpu * 1000)) 100000" > "$CG/cpu.max"
 
-    # 1.1 Prioridade de CPU: o cpu.max é um teto fixo; o cpu.weight só age quando há disputa.
-    # Se dois ambientes querem CPU ao mesmo tempo, o kernel divide na proporção dos pesos
-    # (ex: 300 contra 100 -> 75% / 25%), sempre respeitando o teto de cada um.
+    # Peso: só age na disputa; 300 contra 100 -> 75% / 25%, respeitando o teto de cada um
     echo "$weight" > "$CG/cpu.weight"
 
-    # 2. Memória: Define o limite máximo de RAM em Megabytes (ex: "512M").
+    # Memória: ao passar do limite, o OOM killer mata o processo (código 137)
     echo "${mem}M" > "$CG/memory.max"
-
-    # 3. Swap: Desativa o uso de Swap para esse ambiente (evita que o processo burle o limite de RAM usando disco).
+    # Sem swap, para o processo não burlar o limite de RAM usando o disco
     echo 0 > "$CG/memory.swap.max" 2>/dev/null || true
 
-    # 4. I/O (Disco): Converte o limite de MB/s para bytes/s.
+    # Disco: bytes por segundo de leitura e escrita
     bps=$((io * 1024 * 1024))
-    # Aplica o limite de bytes de leitura (rbps) e escrita (wbps) por segundo no disco principal.
     echo "$DISK rbps=$bps wbps=$bps" > "$CG/io.max"
 
-
-    # -- EXECUÇÃO DO PROCESSO ISOLADO --
-    
-    # O parêntese rodando com '&' no final cria um processo (subshell) em background (segundo plano).
+    # Subshell em segundo plano (&): o envctl retorna na hora, mesmo para serviços que nunca terminam
     (
-      # O $BASHPID pega o ID desse novo processo e escreve na lista de processos do cgroup.
-      # IMPORTANTE: Fazemos isso ANTES de rodar o script do usuário, para garantir que as restrições 
-      # de CPU/Mem/IO já estejam ativas desde o primeiro milissegundo de execução.
+      # Entra no cgroup ANTES de rodar o script; todo filho herda o cgroup do pai
       echo $BASHPID > "$CG/cgroup.procs"
-      
-      # Entra na pasta do ambiente para facilitar localização de arquivos
       cd "$DIR"
 
-      # O comando 'unshare' isola o processo usando Namespaces do kernel Linux:
-      # --pid, --fork: Isola a visualização de processos. Este script será o "PID 1" dentro do isolamento.
-      # --mount-proc: Impede que o processo consiga enxergar processos da máquina hospedeira.
-      # --uts: Isola o nome do host da máquina.
-      # --ipc: Isola a comunicação de dados em memória.
+      # Namespaces: --pid (o script vira PID 1), --mount-proc (remonta o /proc, então o ps
+      # só enxerga os processos do ambiente), --uts (hostname próprio), --ipc (IPC próprio)
       unshare --pid --fork --mount-proc --uts --ipc \
         bash "$DIR/script.sh" > "$DIR/output.log" 2>&1
-      
-      # Ao finalizar a execução do script acima, salva o código de saída (0=Sucesso, Erro>0).
-      echo $? > "$DIR/exit_code"
 
-    # O trecho abaixo desconecta a execução do terminal para que ela continue rodando em silêncio
+      echo $? > "$DIR/exit_code"
     ) < /dev/null > /dev/null 2>&1 &
     ;;
 
-  # =======================================================
-  # COMANDO: STATUS (Verifica a situação atual do ambiente)
-  # =======================================================
   status)
-    # Se ainda existe algum PID listado no cgroup, o processo continua rodando
-    if [ -n "$(cat "$CG/cgroup.procs" 2>/dev/null)" ]; then 
+    # Tem processo no cgroup = executando; parado à mão ou saiu com 0 = terminado; senão, erro
+    if [ -n "$(cat "$CG/cgroup.procs" 2>/dev/null)" ]; then
       echo "executando"
-    
-    # Se existe o arquivo "stopped" (parada manual) ou se o código de saída foi sucesso (0)
-    elif [ -f "$DIR/stopped" ] || [ "$(cat "$DIR/exit_code" 2>/dev/null)" = "0" ]; then 
+    elif [ -f "$DIR/stopped" ] || [ "$(cat "$DIR/exit_code" 2>/dev/null)" = "0" ]; then
       echo "terminado"
-    
-    # Se nenhuma das anteriores ocorreu (não tá rodando e não saiu com sucesso), deu erro.
-    else 
+    else
       echo "erro"
     fi
     ;;
 
-  # =======================================================
-  # COMANDO: LOG (Visualiza a saída de dados do script)
-  # =======================================================
   log)
-    # Exibe as últimas 200 linhas do arquivo que guardou tudo que o script "printou" (stdout/stderr)
-    tail -n 200 "$DIR/output.log" 
+    tail -n 200 "$DIR/output.log"
     ;;
 
-  # =======================================================
-  # COMANDO: STOP (Interrompe um ambiente em execução)
-  # =======================================================
   stop)
-    # Cria o arquivo de marcação indicando que paramos o processo de propósito
     touch "$DIR/stopped"
-    # O arquivo cgroup.kill (nativo do cgroups v2) quando recebe "1" mata imediatamente 
-    # e de forma atômica todos os processos dentro deste grupo.
-    echo 1 > "$CG/cgroup.kill" 
+    # cgroup.kill mata de uma vez todos os processos do grupo (kernel 5.14+)
+    echo 1 > "$CG/cgroup.kill"
     ;;
 
-  # =======================================================
-  # COMANDO: REMOVE (Exclui completamente o ambiente e os dados)
-  # =======================================================
   remove)
-    # Primeiro garante que o ambiente está morto enviando o comando de matar
     [ -d "$CG" ] && echo 1 > "$CG/cgroup.kill"
-    
-    # Aguarda 1 segundo para o Linux terminar de limpar os processos
-    sleep 1; 
-    
-    # Remove a pasta do cgroup no sistema do kernel e deleta o diretório de dados/logs.
+    # Espera os processos morrerem: rmdir só apaga um cgroup sem processos
+    sleep 1;
     rmdir "$CG" 2>/dev/null || true
     rm -rf "$DIR"
     ;;
