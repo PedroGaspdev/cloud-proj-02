@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# Uso: envctl <create|status|log|stop|remove> <id> [parâmetros opcionais]
+# Gerencia os ambientes: namespaces isolam o que o processo vê, cgroups v2 limitam quanto ele usa.
+
+set -euo pipefail
+
+BASE="/sys/fs/cgroup/projeto2"        # cgroup pai: cada ambiente vira uma subpasta
+DATA="/var/lib/cloud-projeto_2/envs"  # output.log, exit_code e stopped de cada ambiente
+
+# O io.max identifica o disco pelo número major:minor (ex: 8:0), não pelo nome
+DISK=$(lsblk -dno MAJ:MIN /dev/sda | tr -d ' ')
+
+# /sys/fs/cgroup vive em memória e some no reboot: recria o pai e liga os controladores
+mkdir -p "$BASE"
+echo '+cpu +memory +io' > /sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || true
+echo '+cpu +memory +io' > "$BASE/cgroup.subtree_control" 2>/dev/null || true
+
+cmd=$1
+id=$2
+
+# Segurança: só a-z, 0-9 e hífen; impede path traversal (ex: id="../../etc") rodando como root
+[[ $id =~ ^[a-z0-9-]+$ ]] || { echo "id invalido" >&2; exit 1; }
+
+CG="$BASE/$id"
+DIR="$DATA/$id"
+
+case $cmd in
+
+  # envctl create <id> <cpu_%> <mem_MB> <io_MBps> <caminho_do_script> [peso_cpu]
+  create)
+    cpu=$3
+    mem=$4
+    io=$5
+    script=$6
+    weight=${7:-100}
+
+    # O kernel só aceita cpu.weight entre 1 e 10000
+    [[ $weight =~ ^[1-9][0-9]*$ ]] && (( weight <= 10000 )) || { echo "peso de cpu invalido (1-10000)" >&2; exit 1; }
+
+    mkdir -p "$CG" "$DIR"
+    [[ -f $script && -r $script ]] || { echo "script nao encontrado ou sem permissao de leitura" >&2; exit 1; }
+    cp -- "$script" "$DIR/script.sh"
+
+    # CPU: "cota período" em µs; 50% -> "50000 100000" = 50 ms a cada 100 ms de 1 core
+    echo "$((cpu * 1000)) 100000" > "$CG/cpu.max"
+
+    # Peso: só age na disputa; 300 contra 100 -> 75% / 25%, respeitando o teto de cada um
+    echo "$weight" > "$CG/cpu.weight"
+
+    # Memória: ao passar do limite, o OOM killer mata o processo (código 137)
+    echo "${mem}M" > "$CG/memory.max"
+    # Sem swap, para o processo não burlar o limite de RAM usando o disco
+    echo 0 > "$CG/memory.swap.max" 2>/dev/null || true
+
+    # Disco: bytes por segundo de leitura e escrita
+    bps=$((io * 1024 * 1024))
+    echo "$DISK rbps=$bps wbps=$bps" > "$CG/io.max"
+
+    # Subshell em segundo plano (&): o envctl retorna na hora, mesmo para serviços que nunca terminam
+    (
+      # Entra no cgroup ANTES de rodar o script; todo filho herda o cgroup do pai
+      echo $BASHPID > "$CG/cgroup.procs"
+      cd "$DIR"
+
+      # Namespaces: --pid (o script vira PID 1), --mount-proc (remonta o /proc, então o ps
+      # só enxerga os processos do ambiente), --uts (hostname próprio), --ipc (IPC próprio)
+      unshare --pid --fork --mount-proc --uts --ipc \
+        bash "$DIR/script.sh" > "$DIR/output.log" 2>&1
+
+      echo $? > "$DIR/exit_code"
+    ) < /dev/null > /dev/null 2>&1 &
+    ;;
+
+  status)
+    # Tem processo no cgroup = executando; parado à mão ou saiu com 0 = terminado; senão, erro
+    if [ -n "$(cat "$CG/cgroup.procs" 2>/dev/null)" ]; then
+      echo "executando"
+    elif [ -f "$DIR/stopped" ] || [ "$(cat "$DIR/exit_code" 2>/dev/null)" = "0" ]; then
+      echo "terminado"
+    else
+      echo "erro"
+    fi
+    ;;
+
+  log)
+    tail -n 200 "$DIR/output.log"
+    ;;
+
+  stop)
+    touch "$DIR/stopped"
+    # cgroup.kill mata de uma vez todos os processos do grupo (kernel 5.14+)
+    echo 1 > "$CG/cgroup.kill"
+    ;;
+
+  remove)
+    [ -d "$CG" ] && echo 1 > "$CG/cgroup.kill"
+    # Espera os processos morrerem: rmdir só apaga um cgroup sem processos
+    sleep 1;
+    rmdir "$CG" 2>/dev/null || true
+    rm -rf "$DIR"
+    ;;
+
+esac
