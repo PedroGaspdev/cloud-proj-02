@@ -33,6 +33,8 @@ if [ ! -d "$WEB_DIR" ]; then
 fi
 ln -sfn "$WEB_DIR" /var/www/html/cloud-projeto_2
 
+sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/cloud-projeto_2|g' /etc/apache2/sites-available/000-default.conf
+
 install -m 0755 "$APP_DIR/bin/envctl" /usr/local/bin/envctl
 echo 'www-data ALL=(root) NOPASSWD: /usr/local/bin/envctl' > /etc/sudoers.d/cloud-projeto_2
 chmod 0440 /etc/sudoers.d/cloud-projeto_2
