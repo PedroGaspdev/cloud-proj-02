@@ -68,6 +68,8 @@ case $cmd in
 
     # Cria o diretório de cgroup e o diretório de dados para o novo ambiente
     mkdir -p "$CG" "$DIR"
+    [[ -f $script && -r $script ]] || { echo "script nao encontrado ou sem permissao de leitura" >&2; exit 1; }
+    cp -- "$script" "$DIR/script.sh"
 
     # -- CONFIGURAÇÃO DE LIMITES DE HARDWARE (CGROUPS) --
 
@@ -106,7 +108,7 @@ case $cmd in
       # --uts: Isola o nome do host da máquina.
       # --ipc: Isola a comunicação de dados em memória.
       unshare --pid --fork --mount-proc --uts --ipc \
-        bash "$script" > "$DIR/output.log" 2>&1
+        bash "$DIR/script.sh" > "$DIR/output.log" 2>&1
       
       # Ao finalizar a execução do script acima, salva o código de saída (0=Sucesso, Erro>0).
       echo $? > "$DIR/exit_code"

@@ -6,18 +6,28 @@
 
 ## 📋 Sumário
 
-- [Visão Geral](#-visão-geral)
-- [Arquitetura do Sistema](#-arquitetura-do-sistema)
-- [Tecnologias Utilizadas](#-tecnologias-utilizadas)
-- [Estrutura do Repositório](#-estrutura-do-repositório)
-- [Pré-requisitos](#-pré-requisitos)
-- [Instalação e Inicialização Rápida](#-instalação-e-inicialização-rápida)
-- [Como Utilizar a Interface Web](#-como-utilizar-a-interface-web)
-- [O Script Auxiliar `envctl` (CLI)](#-o-script-auxiliar-envctl-cli)
-- [Roteiro de Testes e Validação de Recursos](#-roteiro-de-testes-e-validação-de-recursos)
-- [Segurança e Boas Práticas](#-segurança-e-boas-práticas)
-- [Guia Teórico para Apresentação e Arguição](#-guia-teórico-para-apresentação-e-arguição)
-- [Autores](#-autores)
+- [☁️ Projeto 2: Ambientes de Execução com Namespaces e Cgroups v2](#️-projeto-2-ambientes-de-execução-com-namespaces-e-cgroups-v2)
+  - [📋 Sumário](#-sumário)
+  - [🎯 Visão Geral](#-visão-geral)
+  - [🏗️ Arquitetura do Sistema](#️-arquitetura-do-sistema)
+    - [Divisão de Responsabilidades](#divisão-de-responsabilidades)
+  - [🛠️ Tecnologias Utilizadas](#️-tecnologias-utilizadas)
+  - [📁 Estrutura do Repositório](#-estrutura-do-repositório)
+  - [⚙️ Pré-requisitos](#️-pré-requisitos)
+  - [🚀 Instalação e Inicialização Rápida](#-instalação-e-inicialização-rápida)
+  - [💻 Como Utilizar a Interface Web](#-como-utilizar-a-interface-web)
+    - [1. Painel Principal (`index.php`)](#1-painel-principal-indexphp)
+    - [2. Criação de Novo Ambiente (`novo.php`)](#2-criação-de-novo-ambiente-novophp)
+    - [3. Visualizador de Logs (`logs.php`)](#3-visualizador-de-logs-logsphp)
+  - [⚡ O Script Auxiliar `envctl` (CLI)](#-o-script-auxiliar-envctl-cli)
+    - [Sintaxe Básica:](#sintaxe-básica)
+    - [Comandos Suportados:](#comandos-suportados)
+    - [1. Teste de Limite de CPU (ex.: Cota de 20%)](#1-teste-de-limite-de-cpu-ex-cota-de-20)
+    - [2. Teste de Limite de Memória e OOM-Killer (ex.: Cota de 100 MB)](#2-teste-de-limite-de-memória-e-oom-killer-ex-cota-de-100-mb)
+    - [3. Teste de Limite de I/O de Disco (ex.: Cota de 5 MB/s)](#3-teste-de-limite-de-io-de-disco-ex-cota-de-5-mbs)
+    - [4. Teste de Isolamento de Processos (Namespace PID)](#4-teste-de-isolamento-de-processos-namespace-pid)
+    - [5. Teste de Isolamento de Hostname (Namespace UTS)](#5-teste-de-isolamento-de-hostname-namespace-uts)
+    - [6. Teste de Serviço Contínuo (Daemon)](#6-teste-de-serviço-contínuo-daemon)
 
 ---
 
@@ -113,6 +123,7 @@ cloud-proj-02/
 │   ├── index.php             # Painel principal: listagem de ambientes ativos e status em tempo real
 │   ├── novo.php              # Formulário de criação de ambientes e injeção de scripts
 │   ├── acoes.php             # Controlador POST para ações de parada (stop) e exclusão (remove)
+│   ├── scripts.php           # Gerenciamento, visualização, upload e criação de scripts salvos
 │   ├── logs.php              # Visualizador em estilo terminal para logs de saída (output.log)
 │   ├── db.php                # Conexão PDO, sincronizador de status e wrapper seguro para o envctl
 │   ├── header.php            # Cabeçalho padrão, barra de navegação e exibição de flash messages
@@ -195,6 +206,12 @@ Permite configurar:
 - Suporta tanto programas de execução rápida quanto **serviços contínuos (daemons)**.
 - Possui botão de atualização rápida e rolagem automática para a linha mais recente.
 
+### 4. Gerenciamento de Scripts Salvos (`scripts.php`)
+- Visualiza scripts cadastrados e o conteúdo de cada arquivo.
+- Permite criar scripts Bash pelo formulário ou enviar arquivos `.sh` e `.bash` de até 1 MB.
+- Permite remover scripts mesmo quando associados a ambientes. A referência histórica é desvinculada e cada ambiente executa uma cópia própria do script, então a exclusão não interrompe execuções existentes.
+- Em instalações existentes, aplique a atualização do schema na VM com `sudo mysql < /opt/cloud-projeto_2/DB/schema.sql`.
+
 ---
 
 ## ⚡ O Script Auxiliar `envctl` (CLI)
@@ -218,8 +235,6 @@ sudo envctl <create|status|log|stop|remove> <id> [parâmetros...]
 
 ---
 
-## 🧪 Roteiro de Testes e Validação de Recursos
-
 Abaixo estão os testes práticos para demonstrar o cumprimento de cada requisito de isolamento e restrição de recursos (podem ser testados pela interface web ou via terminal com `vagrant ssh`):
 
 ### 1. Teste de Limite de CPU (ex.: Cota de 20%)
@@ -231,12 +246,9 @@ Abaixo estão os testes práticos para demonstrar o cumprimento de cada requisit
   Abra um terminal na VM (`vagrant ssh`) e execute `top`. Observe que o uso da CPU para a thread do script oscilará estritamente próximo ao limite configurado (ex.: ~20%).
 
 ### 2. Teste de Limite de Memória e OOM-Killer (ex.: Cota de 100 MB)
-- **Script executado**:
-  ```bash
-  python3 -c "a = ' ' * 300_000_000"
-  ```
+- **Script automatizado**: `tests/resource_limits/test_memory.sh`
 - **Como validar**:
-  O Python tentará alocar ~300 MB de RAM. Como o limite foi configurado em 100 MB e o swap está desativado (`memory.swap.max = 0`), o kernel acionará o **OOM-Killer**. O processo será abortado com código `137` e o status na interface web mudará para **Erro (OOM / Falha)**.
+  O script Bash usa `awk` para alocar mais memória do que o limite configurado. No teste automatizado, o limite é 64 MB e o swap está desativado (`memory.swap.max = 0`); o kernel aciona o **OOM-Killer** e o status muda para **Erro (OOM / Falha)**.
   No terminal, confira o contador de OOM do cgroup:
   ```bash
   cat /sys/fs/cgroup/projeto2/<id>/memory.events

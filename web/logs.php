@@ -63,7 +63,7 @@ require_once __DIR__ . '/header.php';
         </div>
         <div>
             <span class="text-muted">Script:</span>
-            <?= htmlspecialchars($amb['script_nome'] ?? 'Script avulso') ?>
+            <?= htmlspecialchars($amb['script_nome'] ?? 'Script removido') ?>
         </div>
         <div>
             <span class="text-muted">Limites:</span>
