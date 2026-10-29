@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_URL="https://github.com/PedroGaspdev/cloud-proj-02.git"
-REPO_BRANCH="scripts_salvos"
+REPO_BRANCH="develop"
 APP_DIR="/opt/cloud-projeto_2"
 DATA_DIR="/var/lib/cloud-projeto_2"
 
@@ -45,3 +45,9 @@ echo '+cpu +memory +io' > /sys/fs/cgroup/projeto2/cgroup.subtree_control
 
 systemctl enable --now apache2 mysql
 systemctl restart apache2
+
+echo "========================================================"
+echo " Dockerzito pronto! Acesse no navegador do host:"
+echo "   http://localhost:8080"
+echo "   http://192.168.56.10"
+echo "========================================================"

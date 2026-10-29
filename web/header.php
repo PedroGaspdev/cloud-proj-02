@@ -9,7 +9,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel de Ambientes - Namespaces & Cgroups</title>
+    <title>Dockerzito - Painel de Ambientes</title>
+    <link rel="icon" type="image/png" href="img/dockerzito.png">
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -44,8 +45,8 @@ $currentPage = basename($_SERVER['PHP_SELF']);
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <div class="container">
         <a class="navbar-brand d-flex align-items-center gap-2" href="index.php">
-            <i class="bi bi-box-seam"></i>
-            <span>Projeto 2 &bull; Ambientes Isolados</span>
+            <img src="img/dockerzito.png" alt="Logo Dockerzito" width="36" height="36" class="bg-white rounded-2 p-1">
+            <span>Dockerzito</span>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
             <span class="navbar-toggler-icon"></span>

@@ -1,12 +1,14 @@
-# ☁️ Projeto 2: Ambientes de Execução com Namespaces e Cgroups v2
+<p align="center"><img src="web/img/dockerzito.png" alt="Logo Dockerzito" width="180"></p>
 
-> **Computação em Nuvem** • Implementação de um *Container Runtime* simplificado com interface Web para gerenciamento e isolamento de processos sob demanda.
+# ☁️ Dockerzito: Ambientes de Execução com Namespaces e Cgroups v2
+
+> **Computação em Nuvem • Projeto 2** • Implementação de um *Container Runtime* simplificado com interface Web para gerenciamento e isolamento de processos sob demanda.
 
 ---
 
 ## 📋 Sumário
 
-- [☁️ Projeto 2: Ambientes de Execução com Namespaces e Cgroups v2](#️-projeto-2-ambientes-de-execução-com-namespaces-e-cgroups-v2)
+- [☁️ Dockerzito: Ambientes de Execução com Namespaces e Cgroups v2](#️-dockerzito-ambientes-de-execução-com-namespaces-e-cgroups-v2)
   - [📋 Sumário](#-sumário)
   - [🎯 Visão Geral](#-visão-geral)
   - [🏗️ Arquitetura do Sistema](#️-arquitetura-do-sistema)
